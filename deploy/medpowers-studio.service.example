@@ -1,0 +1,25 @@
+[Unit]
+Description=MedPowers Studio
+Documentation=file:///opt/medpowers-studio/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+# 按实际部署修改
+User=CHANGE_ME
+Group=CHANGE_ME
+WorkingDirectory=/opt/medpowers-studio
+# 多网卡主机请改为内网地址，例如 192.168.113.201
+Environment=MP_HOST=0.0.0.0
+Environment=MP_PORT=8000
+# 可选：加载后端配置
+# EnvironmentFile=/opt/medpowers-studio/backend/.env
+ExecStart=/opt/medpowers-studio/scripts/start.sh
+ExecStop=/opt/medpowers-studio/scripts/stop.sh
+PIDFile=/opt/medpowers-studio/run/medpowers-studio.pid
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

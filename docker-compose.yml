@@ -1,0 +1,73 @@
+name: medpowers-studio
+
+services:
+  db:
+    image: postgres:16-alpine
+    # 工作区并行隔离：各实例 .env 中设 MP_DB_CONTAINER_NAME / MP_DB_PORT，默认值与上游一致
+    container_name: "${MP_DB_CONTAINER_NAME:-medpowers-studio-db}"
+    environment:
+      POSTGRES_DB: "${MP_DB_NAME:-medpowers}"
+      POSTGRES_USER: "${MP_DB_USER:-medpowers}"
+      POSTGRES_PASSWORD: "${MP_DB_PASSWORD:-change-me-in-production}"
+    volumes:
+      - "${MP_DATA_DIR:-./data}/postgres:/var/lib/postgresql/data"
+    ports:
+      - "127.0.0.1:${MP_DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MP_DB_USER:-medpowers} -d ${MP_DB_NAME:-medpowers}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  studio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # 工作区并行隔离：各实例 .env 中设 MP_IMAGE / MP_CONTAINER_NAME，默认值与上游一致
+    image: "${MP_IMAGE:-medpowers-studio:0.2.0}"
+    container_name: "${MP_CONTAINER_NAME:-medpowers-studio}"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${MP_BIND_HOST:-0.0.0.0}:${MP_PORT:-8000}:8000"
+    environment:
+      MEDPOWERS_DATABASE_URL: "postgresql+psycopg://${MP_DB_USER:-medpowers}:${MP_DB_PASSWORD:-change-me-in-production}@db:5432/${MP_DB_NAME:-medpowers}"
+      MEDPOWERS_STORAGE_ROOT: /data/storage
+      MEDPOWERS_ENVIRONMENT: "${MEDPOWERS_ENVIRONMENT:-development}"
+      MEDPOWERS_JWT_SECRET: "${MEDPOWERS_JWT_SECRET:-change-me-in-production-use-32-bytes-minimum}"
+      MEDPOWERS_BOOTSTRAP_ADMIN_USERNAME: "${MEDPOWERS_BOOTSTRAP_ADMIN_USERNAME:-admin}"
+      MEDPOWERS_BOOTSTRAP_ADMIN_PASSWORD: "${MEDPOWERS_BOOTSTRAP_ADMIN_PASSWORD:-admin123}"
+      MEDPOWERS_PATIENT_SALT: "${MEDPOWERS_PATIENT_SALT:-medpowers-studio}"
+      MEDPOWERS_PUBLIC_BASE_URL: "${MEDPOWERS_PUBLIC_BASE_URL:-}"
+      MEDPOWERS_ALLOWED_HOSTS: "${MEDPOWERS_ALLOWED_HOSTS:-[]}"
+      MEDPOWERS_CORS_ORIGINS: "${MEDPOWERS_CORS_ORIGINS:-[]}"
+      MEDPOWERS_MAX_UPLOAD_MB: "${MEDPOWERS_MAX_UPLOAD_MB:-4096}"
+      MEDPOWERS_STORAGE_MIN_FREE_GB: "${MEDPOWERS_STORAGE_MIN_FREE_GB:-50}"
+      MEDPOWERS_SLICE_CACHE_VOLUMES: "${MEDPOWERS_SLICE_CACHE_VOLUMES:-4}"
+      MEDPOWERS_API_TOKEN_DEFAULT_EXPIRE_DAYS: "${MEDPOWERS_API_TOKEN_DEFAULT_EXPIRE_DAYS:-90}"
+      MEDPOWERS_API_TOKEN_MAX_EXPIRE_DAYS: "${MEDPOWERS_API_TOKEN_MAX_EXPIRE_DAYS:-365}"
+      MEDPOWERS_DEVICE_CODE_EXPIRE_SECONDS: "${MEDPOWERS_DEVICE_CODE_EXPIRE_SECONDS:-600}"
+      MEDPOWERS_DEVICE_POLL_INTERVAL_SECONDS: "${MEDPOWERS_DEVICE_POLL_INTERVAL_SECONDS:-5}"
+      MEDPOWERS_AUTH_RATE_LIMIT_PER_MINUTE: "${MEDPOWERS_AUTH_RATE_LIMIT_PER_MINUTE:-20}"
+      MEDPOWERS_ENABLE_HSTS: "${MEDPOWERS_ENABLE_HSTS:-false}"
+    volumes:
+      - "${MP_DATA_DIR:-./data}/storage:/data/storage"
+      - "${MP_IMPORT_DIR:-./imports}:/imports:ro"
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    init: true
+    stop_grace_period: 60s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"

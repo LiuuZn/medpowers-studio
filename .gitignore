@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Backend runtime
+backend/medpowers_studio.db*
+backend/storage/
+backend/storage.v1-*/
+backend/tmp/
+*.sqlite3
+
+# Local service / deployment runtime
+run/
+logs/
+data/
+imports/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Agent workspace artifacts
+.zcode/

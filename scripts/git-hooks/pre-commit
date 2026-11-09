@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# 分支纪律（强制）：main 上禁止直接提交——原始提交必须落在开发分支（<type>/<topic>）。
+# 放行：git merge / git pull 产生的合并提交（MERGE_HEAD 存在）。
+# 紧急豁免：MPS_ALLOW_MAIN_COMMIT=1 git commit ...（提交说明须注明原因；GitLab 服务端保护不受此影响）。
+# 启用方式：git config core.hooksPath scripts/git-hooks（工作区 scripts/claim.sh 认领实例时会自动安装）。
+set -euo pipefail
+
+branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+if [[ "$branch" != "main" ]]; then
+  exit 0
+fi
+if [[ -f "$(git rev-parse --git-dir)/MERGE_HEAD" ]]; then
+  exit 0  # 合并提交放行
+fi
+if [[ "${MPS_ALLOW_MAIN_COMMIT:-0}" == "1" ]]; then
+  echo "⚠ MPS_ALLOW_MAIN_COMMIT=1：已豁免 main 直提限制（提交说明请注明原因）" >&2
+  exit 0
+fi
+cat >&2 <<'EOF'
+✗ 分支纪律：禁止在 main 上直接提交。
+  原始提交必须落在开发分支：
+    git switch -c <type>/<topic>      # 如 feat/studio-datasets
+    # 提交后： git push origin <分支>，在 GitLab 建 MR（强制 squash）合入 main
+  确需紧急豁免：MPS_ALLOW_MAIN_COMMIT=1 git commit ...，并在提交说明注明原因。
+EOF
+exit 1
